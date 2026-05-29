@@ -152,19 +152,17 @@ class JSCManager(context: Context) : BaseJSCManager(context) {
 
     private fun installThemedStylerBridge(context: JSContext) {
         val isDarkMode = (this.context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val prefersColorSchemeLiteral = if (isDarkMode) "\"dark\"" else "\"light\""
         try {
             context.evaluateScript("""
                 (function() {
-                    var isOsDarkMode = $isDarkMode;
+                    var defaultPrefers = $prefersColorSchemeLiteral;
                     if (!globalThis.__clevertree_packages) {
                         globalThis.__clevertree_packages = {};
                     }
                     
-                    // Set up the native hook for getting Android styles
-                    // This will be called by themedStylerBridge.getAndroidStyles()
                     globalThis.__themedStylerGetAndroidStyles = function(selector, classes, themesState) {
                         console.log('[__themedStylerGetAndroidStyles] Called with selector=' + selector + ' classes=' + JSON.stringify(classes));
-                        // This function will be replaced by the native init
                         return {};
                     };
                     
@@ -172,15 +170,23 @@ class JSCManager(context: Context) : BaseJSCManager(context) {
                         globalThis.__themed_styler_state = {
                             themes: {},
                             currentTheme: 'default',
-                            usage: { tags: new Set(), classes: new Set() }
+                            usage: { tags: new Set(), classes: new Set(), tagClasses: new Set() },
+                            prefers_color_scheme: defaultPrefers
                         };
                     }
                     
                     var state = globalThis.__themed_styler_state;
 
+                    function effectivePrefers() {
+                        var stored = state.prefers_color_scheme || state.prefersColorScheme || defaultPrefers;
+                        state.prefers_color_scheme = stored;
+                        return stored;
+                    }
+
                     function resolveThemeName(name) {
+                        var prefersDark = effectivePrefers() === 'dark';
                         if (!name || name === 'default') {
-                            if (isOsDarkMode) {
+                            if (prefersDark) {
                                 var darkTheme = Object.keys(state.themes).find(function(t) { return t.toLowerCase().indexOf('dark') === 0; });
                                 if (darkTheme) return darkTheme;
                             }
@@ -204,7 +210,8 @@ class JSCManager(context: Context) : BaseJSCManager(context) {
                                 themes: state.themes,
                                 currentTheme: resolved,
                                 current_theme: resolved,
-                                default_theme: state.currentTheme || 'default'
+                                default_theme: state.currentTheme || 'default',
+                                prefers_color_scheme: state.prefers_color_scheme
                             };
                         },
                         getThemeList: function() {

@@ -64,6 +64,19 @@ pub struct State {
 ".text-themed": { "color": "#1f2937" }
 ```
 
+## Theme Resolution Logic (CRITICAL)
+
+`prefers_color_scheme` is now propagated through every theme payload, so the Rust engine can drive the selection rather than the bridge.
+
+### Strategy:
+1. Bridges populate `prefers_color_scheme` with `dark`, `light`, or `null` when they send theme JSON to the styled engine.
+2. Theme entries can define `inherits` for the light/default chain and `inheritsDark` for the `dark` preference so the `default` entry can simply delegate to the appropriate base.
+3. `State` applies inheritance by checking `prefers_color_scheme` and following `inheritsDark` when the preference equals `dark`.
+
+### Implementation:
+- **Web**: `shared/themedStylerBridge.ts` detects `prefers-color-scheme` via `matchMedia` and exposes it as part of `getThemes()`.
+- **Android**: `HookRenderer.kt` and the test `JSCManager.kt` send `prefers_color_scheme` down to `ThemedStylerModule`, keeping `state.prefers_color_scheme` in sync with the native detection.
+
 ## JSX Tag Standards
 - Use `<span>` for text elements (mapped to `TextView` on Android).
 - **NEVER** use `<text>` as it is not a standard HTML tag and causes issues on Web.

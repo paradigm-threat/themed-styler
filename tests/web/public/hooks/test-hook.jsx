@@ -24,6 +24,26 @@ export default function ThemedDemo() {
     return () => clearInterval(timer);
   }, [theme]);
 
+  React.useEffect(() => {
+    const resolvedTheme = getThemes().currentTheme || 'light';
+    const prefersDark = typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false;
+    console.log('[test-hook] Theme detection', {
+      prefersDark,
+      resolvedTheme,
+      localTheme: theme,
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const resolvedTheme = getThemes().currentTheme || 'light';
+    console.log('[test-hook] Theme change', {
+      localTheme: theme,
+      bridgeTheme: resolvedTheme,
+    });
+  }, [theme]);
+
   return (
     <body>
       <div className="p-4 rounded mb-6 bg-surface">

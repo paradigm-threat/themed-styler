@@ -49,6 +49,16 @@ async function main() {
       console.error('Test App: Failed to load theme.yaml:', e);
     }
 
+    const themeState = unifiedBridge.getThemes();
+    const prefersDark = typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false;
+    console.log('Test App: Theme state after load', themeState);
+    console.log('Test App: OS prefers dark mode?', prefersDark);
+    if (themeState.default_theme === 'default' && themeState.currentTheme && themeState.currentTheme.toLowerCase().startsWith('dark')) {
+      console.log('Test App: default theme resolved to dark variant', themeState.currentTheme);
+    }
+
     // Start auto-sync for styles
     styleManager.startAutoSync();
 

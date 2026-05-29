@@ -3,7 +3,7 @@ use serde_json::json;
 use crate::theme::State;
 use crate::utils::{merge_android_props, parse_prefixed_class, class_to_selector};
 use crate::tailwind::dynamic_css_properties_for_class;
-use crate::units::{dp_to_px, parse_and_convert_to_px};
+use crate::units::{dp_to_px, parse_and_convert_to_px, parse_font_size_to_sp};
 
 impl State {
     pub fn android_base_styles(&self, selector: &str, classes: &[String]) -> IndexMap<String, serde_json::Value> {
@@ -54,6 +54,20 @@ impl State {
                 defaults.insert("font-size".into(), json!("10.72px"));
                 defaults.insert("font-weight".into(), json!("bold"));
                 defaults.insert("margin-vertical".into(), json!("24.96px"));
+            }
+            "table" => {
+                defaults.insert("width".into(), json!("match_parent"));
+                defaults.insert("border-width".into(), json!("1px"));
+                defaults.insert("border-color".into(), json!("#cccccc"));
+                defaults.insert("margin-vertical".into(), json!("16px"));
+            }
+            "table-row" => {
+                defaults.insert("width".into(), json!("match_parent"));
+            }
+            "table-cell" => {
+                defaults.insert("padding".into(), json!("8px"));
+                defaults.insert("border-width".into(), json!("1px"));
+                defaults.insert("border-color".into(), json!("#cccccc"));
             }
             "input" => {
                 defaults.insert("padding-vertical".into(), json!("8px"));
@@ -165,9 +179,8 @@ impl State {
         }
         
         if let Some(font_size) = styles.get("fontSize").cloned() {
-            if let Some(serde_json::Value::Number(n)) = parse_and_convert_to_px(&font_size, density).as_ref() {
-                let sp_value = n.as_f64().unwrap_or(14.0) as f32 / density * scaled_density;
-                styles.insert("fontSize".to_string(), serde_json::json!(sp_value));
+            if let Some(converted) = parse_font_size_to_sp(&font_size, density) {
+                styles.insert("fontSize".to_string(), converted);
             }
         }
         
@@ -319,8 +332,20 @@ impl State {
                 }
                 _ => false
             };
-            if is_bold {
+            
+            let font_style = styles.get("fontStyle").and_then(|v| v.as_str()).unwrap_or("");
+            let is_italic = font_style.contains("italic");
+            
+            if is_bold && is_italic {
+                styles.insert("androidTypefaceStyle".to_string(), serde_json::json!("bold_italic"));
+            } else if is_bold {
                 styles.insert("androidTypefaceStyle".to_string(), serde_json::json!("bold"));
+            } else if is_italic {
+                styles.insert("androidTypefaceStyle".to_string(), serde_json::json!("italic"));
+            }
+        } else if let Some(font_style) = styles.get("fontStyle") {
+            if font_style.as_str() == Some("italic") {
+                styles.insert("androidTypefaceStyle".to_string(), serde_json::json!("italic"));
             }
         }
         

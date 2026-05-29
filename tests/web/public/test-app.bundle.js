@@ -32178,6 +32178,48 @@ var init_styleManager = __esm({
 });
 
 // ../../dist/shared/themedStylerBridge.js
+function requestWebStyleRender() {
+  try {
+    Promise.resolve().then(() => (init_styleManager(), styleManager_exports)).then((manager) => {
+      try {
+        ;
+        manager.requestRender && manager.requestRender();
+      } catch {
+      }
+    }).catch(() => {
+    });
+  } catch {
+  }
+}
+function detectPrefersColorScheme() {
+  if (typeof window === "undefined" || !window.matchMedia) {
+    return null;
+  }
+  if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    return "dark";
+  }
+  if (window.matchMedia("(prefers-color-scheme: light)").matches) {
+    return "light";
+  }
+  return null;
+}
+function handlePrefersColorSchemeChange(event) {
+  prefersColorScheme = event.matches ? "dark" : "light";
+}
+function resolveThemeName(name) {
+  if (!name || name === "default") {
+    if (prefersColorScheme === "dark") {
+      const darkTheme = Object.keys(themes).find((t) => t.toLowerCase().startsWith("dark"));
+      if (darkTheme)
+        return darkTheme;
+    }
+    if (themes["light"])
+      return "light";
+    const keys = Object.keys(themes);
+    return keys.length > 0 ? keys[0] : name;
+  }
+  return name;
+}
 function registerUsage(tag, props, hierarchy) {
   const cls = props ? props.className || props.class || "" : "";
   const classes = typeof cls === "string" && cls.trim().length ? cls.split(/\s+/).map((c) => c.trim()).filter(Boolean) : [];
@@ -32214,27 +32256,26 @@ function registerTheme(name, defs) {
 }
 function setCurrentTheme(name) {
   currentTheme = name;
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem("relay_theme", name);
+    } catch (e) {
+    }
+  }
   if (typeof globalThis !== "undefined") {
     ;
     globalThis.__bridgeGetThemes = () => getThemes();
   }
-  try {
-    Promise.resolve().then(() => (init_styleManager(), styleManager_exports)).then((m) => {
-      try {
-        m.requestRender && m.requestRender();
-      } catch {
-      }
-    }).catch(() => {
-    });
-  } catch {
-  }
+  requestWebStyleRender();
 }
 function getThemes() {
+  const resolvedTheme = resolveThemeName(currentTheme);
   return {
     themes: { ...themes },
-    currentTheme,
-    current_theme: currentTheme,
-    default_theme: currentTheme,
+    currentTheme: resolvedTheme,
+    current_theme: resolvedTheme,
+    default_theme: currentTheme || "default",
+    prefers_color_scheme: prefersColorScheme,
     variables: {},
     breakpoints: {}
   };
@@ -32264,8 +32305,10 @@ async function loadThemesFromYamlText(yamlText) {
     for (const [themeName, themeData] of Object.entries(themeConfig.themes || {})) {
       registerTheme(themeName, themeData);
     }
-    if (themeConfig.default_theme)
+    if (themeConfig.default_theme) {
       setCurrentTheme(String(themeConfig.default_theme));
+    }
+    requestWebStyleRender();
   } catch (e) {
     console.error("[themedStylerBridge] loadThemesFromYamlText failed:", e);
   }
@@ -32345,7 +32388,7 @@ function getAndroidStyles(selector, classes = []) {
     throw new Error(`[themedStylerBridge.getAndroidStyles] Failed to compute styles: ${e}`);
   }
 }
-var usage, themes, currentTheme, _defaults_loaded, themedStylerBridge_default;
+var usage, themes, currentTheme, prefersColorScheme, _defaults_loaded, themedStylerBridge_default;
 var init_themedStylerBridge = __esm({
   "../../dist/shared/themedStylerBridge.js"() {
     "use strict";
@@ -32358,7 +32401,16 @@ var init_themedStylerBridge = __esm({
       // encoded as `${tag}|${class}`
     };
     themes = {};
-    currentTheme = null;
+    currentTheme = typeof localStorage !== "undefined" ? localStorage.getItem("relay_theme") : null;
+    prefersColorScheme = detectPrefersColorScheme();
+    if (typeof window !== "undefined" && window.matchMedia) {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      if (typeof mediaQuery.addEventListener === "function") {
+        mediaQuery.addEventListener("change", handlePrefersColorSchemeChange);
+      } else if (typeof mediaQuery.addListener === "function") {
+        mediaQuery.addListener(handlePrefersColorSchemeChange);
+      }
+    }
     _defaults_loaded = false;
     themedStylerBridge_default = {
       registerUsage,
@@ -33810,6 +33862,13 @@ async function main() {
       console.log("Test App: theme.yaml loaded");
     } catch (e) {
       console.error("Test App: Failed to load theme.yaml:", e);
+    }
+    const themeState = unifiedBridge_default.getThemes();
+    const prefersDark = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)").matches : false;
+    console.log("Test App: Theme state after load", themeState);
+    console.log("Test App: OS prefers dark mode?", prefersDark);
+    if (themeState.default_theme === "default" && themeState.currentTheme && themeState.currentTheme.toLowerCase().startsWith("dark")) {
+      console.log("Test App: default theme resolved to dark variant", themeState.currentTheme);
     }
     styleManager_default.startAutoSync();
     console.log("Test App: Rendering component...");

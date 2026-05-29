@@ -8,6 +8,7 @@ import { themeYaml } from './theme'
 
 type Props = Record<string, any>
 type HierNode = { tag: string; classes?: string[] }
+type PrefersColorScheme = 'dark' | 'light' | null
 
 const usage = {
   tags: new Set<string>(),
@@ -17,22 +18,56 @@ const usage = {
 
 const themes: Record<string, Record<string, any>> = {}
 let currentTheme: string | null = typeof localStorage !== 'undefined' ? localStorage.getItem('relay_theme') : null
+let prefersColorScheme: PrefersColorScheme = detectPrefersColorScheme()
 
-function isDarkMode() {
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
+function requestWebStyleRender() {
+  try {
+    import('../web/styleManager').then((manager) => {
+      try {
+        ; (manager as any).requestRender && (manager as any).requestRender()
+      } catch {
+        /* ignore */
+      }
+    }).catch(() => {
+      /* ignore */
+    })
+  } catch {
+    /* ignore */
   }
-  return false
+}
+
+function detectPrefersColorScheme(): PrefersColorScheme {
+  if (typeof window === 'undefined' || !window.matchMedia) {
+    return null
+  }
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark'
+  }
+  if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+    return 'light'
+  }
+  return null
+}
+
+function handlePrefersColorSchemeChange(event: any) {
+  prefersColorScheme = event.matches ? 'dark' : 'light'
+}
+
+if (typeof window !== 'undefined' && window.matchMedia) {
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  if (typeof mediaQuery.addEventListener === 'function') {
+    mediaQuery.addEventListener('change', handlePrefersColorSchemeChange)
+  } else if (typeof mediaQuery.addListener === 'function') {
+    mediaQuery.addListener(handlePrefersColorSchemeChange as any)
+  }
 }
 
 function resolveThemeName(name: string | null): string | null {
   if (!name || name === 'default') {
-    if (isDarkMode()) {
-      // Search for theme starting with 'dark'
+    if (prefersColorScheme === 'dark') {
       const darkTheme = Object.keys(themes).find((t) => t.toLowerCase().startsWith('dark'))
       if (darkTheme) return darkTheme
     }
-    // Fallback to 'light' if it exists, otherwise first theme
     if (themes['light']) return 'light'
     const keys = Object.keys(themes)
     return keys.length > 0 ? keys[0] : name
@@ -92,14 +127,7 @@ export function setCurrentTheme(name: string) {
     ; (globalThis as any).__bridgeGetThemes = () => getThemes()
   }
   // Trigger immediate CSS re-render in web by notifying styleManager lazily
-  try {
-    // Dynamic import avoids ESM circular dependency at module load
-    // and is a no-op on RN where styleManager DOM APIs are not present.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    import('../web/styleManager').then((m) => {
-      try { (m as any).requestRender && (m as any).requestRender() } catch { /* noop */ }
-    }).catch(() => { /* ignore */ })
-  } catch { /* ignore */ }
+  requestWebStyleRender()
 }
 
 export function getThemes() {
@@ -109,6 +137,7 @@ export function getThemes() {
     currentTheme: resolvedTheme,
     current_theme: resolvedTheme,
     default_theme: currentTheme || 'default',
+    prefers_color_scheme: prefersColorScheme,
     variables: {},
     breakpoints: {},
   }
@@ -148,7 +177,10 @@ export async function loadThemesFromYamlText(yamlText: string): Promise<void> {
     for (const [themeName, themeData] of Object.entries(themeConfig.themes || {})) {
       registerTheme(themeName, themeData as Record<string, unknown>)
     }
-    if (themeConfig.default_theme) setCurrentTheme(String(themeConfig.default_theme))
+    if (themeConfig.default_theme) {
+      setCurrentTheme(String(themeConfig.default_theme))
+    }
+    requestWebStyleRender()
   } catch (e) {
     console.error('[themedStylerBridge] loadThemesFromYamlText failed:', e)
   }

@@ -45,9 +45,20 @@ impl Color {
 
     pub fn to_hex(&self) -> String {
         if self.a >= 1.0 {
-            format!("#{:02x}{:02x}{:02x}", (self.r * 255.0) as u8, (self.g * 255.0) as u8, (self.b * 255.0) as u8)
+            format!(
+                "#{:02x}{:02x}{:02x}",
+                (self.r * 255.0) as u8,
+                (self.g * 255.0) as u8,
+                (self.b * 255.0) as u8
+            )
         } else {
-            format!("#{:02x}{:02x}{:02x}{:02x}", (self.r * 255.0) as u8, (self.g * 255.0) as u8, (self.b * 255.0) as u8, (self.a * 255.0) as u8)
+            format!(
+                "#{:02x}{:02x}{:02x}{:02x}",
+                (self.r * 255.0) as u8,
+                (self.g * 255.0) as u8,
+                (self.b * 255.0) as u8,
+                (self.a * 255.0) as u8
+            )
         }
     }
 
@@ -69,7 +80,7 @@ pub fn resolve_color(
     vars: &IndexMap<String, String>,
 ) -> String {
     let value = value.trim();
-    
+
     if value == "currentColor" {
         return current_color.unwrap_or("#000000").to_string();
     }
@@ -122,12 +133,16 @@ fn resolve_color_mix(
     // color-mix(in srgb, color1 [percentage], color2 [percentage])
     let content = &value[10..value.len() - 1];
     let parts: Vec<&str> = content.split(',').map(|s| s.trim()).collect();
-    
+
     if parts.len() < 3 {
         return "#000000".to_string();
     }
 
-    log::debug!("[resolve_color_mix] content={} current_color={:?}", content, current_color);
+    log::debug!(
+        "[resolve_color_mix] content={} current_color={:?}",
+        content,
+        current_color
+    );
 
     // Skip "in srgb"
     let c1_part = parts[1];
@@ -139,10 +154,26 @@ fn resolve_color_mix(
     let c1_hex = resolve_color(c1_str, current_color, vars);
     let c2_hex = resolve_color(c2_str, current_color, vars);
 
-    log::debug!("[resolve_color_mix] c1_str={} -> c1_hex={}, c2_str={} -> c2_hex={}", c1_str, c1_hex, c2_str, c2_hex);
+    log::debug!(
+        "[resolve_color_mix] c1_str={} -> c1_hex={}, c2_str={} -> c2_hex={}",
+        c1_str,
+        c1_hex,
+        c2_str,
+        c2_hex
+    );
 
-    let c1 = Color::from_hex(&c1_hex).unwrap_or(Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 });
-    let c2 = Color::from_hex(&c2_hex).unwrap_or(Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 });
+    let c1 = Color::from_hex(&c1_hex).unwrap_or(Color {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 1.0,
+    });
+    let c2 = Color::from_hex(&c2_hex).unwrap_or(Color {
+        r: 0.0,
+        g: 0.0,
+        b: 0.0,
+        a: 1.0,
+    });
 
     let weight = if let Some(p) = p2 {
         p / 100.0

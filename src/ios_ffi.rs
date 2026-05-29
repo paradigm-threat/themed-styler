@@ -1,4 +1,4 @@
-use crate::{State, ThemeEntry, version};
+use crate::{version, State, ThemeEntry};
 use indexmap::IndexMap;
 use serde::Deserialize;
 
