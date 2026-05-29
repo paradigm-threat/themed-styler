@@ -1,5 +1,4 @@
 use indexmap::IndexMap;
-use serde_json::json;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {

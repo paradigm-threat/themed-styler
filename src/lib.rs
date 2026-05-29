@@ -24,11 +24,6 @@ fn dp_to_px(dp: f32, density: f32) -> i32 {
     (dp * density).round() as i32
 }
 
-/// Convert sp to pixels using scaled density  
-fn sp_to_px(sp: f32, scaled_density: f32) -> f32 {
-    sp * scaled_density
-}
-
 /// Parse a CSS value and convert to Android pixels if needed
 fn parse_and_convert_to_px(value: &serde_json::Value, density: f32) -> Option<serde_json::Value> {
     match value {
@@ -830,8 +825,8 @@ impl State {
             if let Some(serde_json::Value::Number(n)) =
                 parse_and_convert_to_px(&font_size, density).as_ref()
             {
-                // px to sp: sp = px / density (1rem=16px -> 16sp at 1x)
-                let sp_value = n.as_f64().unwrap_or(14.0) as f32 / density;
+                let px = n.as_f64().unwrap_or(14.0) as f32;
+                let sp_value = px / scaled_density;
                 styles.insert("fontSize".to_string(), serde_json::json!(sp_value));
             }
         }
@@ -3770,6 +3765,7 @@ mod android_jni;
 
 mod bridge_common;
 mod ffi;
+#[allow(dead_code)]
 mod utils;
 
 pub use ffi::*;

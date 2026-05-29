@@ -151,7 +151,7 @@ pub fn class_to_selector(class: &str) -> String {
 pub fn css_value_to_android(
     value: &serde_json::Value,
     vars: &IndexMap<String, String>,
-    current_color: Option<&str>,
+    _current_color: Option<&str>,
 ) -> serde_json::Value {
     match value {
         serde_json::Value::String(s) => {
